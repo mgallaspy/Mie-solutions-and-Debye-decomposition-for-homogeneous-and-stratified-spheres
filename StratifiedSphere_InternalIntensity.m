@@ -6,7 +6,7 @@ function StratifiedSphere_InternalIntensity (n_med,ns_part,size_prms)
 
 % Number of points to sample for each coordinate.
 phi_num = 1;
-theta_num = 90;
+theta_num = 180;
 rho_num = 60;
 
 % Relative refractive index of the sphere.
@@ -69,4 +69,6 @@ colorbar;                            % add contour legend
 colormap jet;                       % set colormap (red=high;blue=low)
 hold off;                            % remove hold on figure
 
+figure; 
+h = contour(z(:,:,phi_plane_ind),x(:,:,phi_plane_ind),Intensity(:,:,phi_plane_ind),60);
 %---------- End HomogeneousSphere_InternalIntensity function --------

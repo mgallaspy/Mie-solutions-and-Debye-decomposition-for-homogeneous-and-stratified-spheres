@@ -18,10 +18,6 @@ function [E_r, E_theta, E_phi] = StratifiedSphere_InternalField(rho, theta, phi,
 
 	% Calculate Bessel functions for each layer of the sphere
 	rho_len = length(rho);
-	Psi_n(1:rho_len,1:ind_max) = 0;
-	Psi_n_p(1:rho_len,1:ind_max) = 0;
-	Chi_n(1:rho_len,1:ind_max) = 0;
-	Chi_n_p(1:rho_len,1:ind_max) = 0;
     mxrho(1:rho_len) = 0;
 	for rho_ind=1:rho_len
 		% Determine which layer we are in...
@@ -29,7 +25,7 @@ function [E_r, E_theta, E_phi] = StratifiedSphere_InternalField(rho, theta, phi,
 		size_prm = size_prms(layer);
         n_part = ns_part(layer);
         mxrho(rho_ind) = size_prm*n_part*rho(rho_ind);
-        [Psi_n(rho_ind,:), Psi_n_p(rho_ind,:), Chi_n(rho_ind,:), Chi_n_p(rho_ind,:)] = BesselCalc(ind_max, mxrho(rho_ind));
+%         [Psi_n(rho_ind,:), Psi_n_p(rho_ind,:), Chi_n(rho_ind,:), Chi_n_p(rho_ind,:)] = BesselCalc(ind_max, mxrho(rho_ind));
 	end
 
     % Calculate the plane wave coefficients needed in the Bromwich formulation
@@ -48,7 +44,24 @@ function [E_r, E_theta, E_phi] = StratifiedSphere_InternalField(rho, theta, phi,
     for rho_ind=1:length(rho)
         layer = getLayer(rho(rho_ind), size_prms);
     	for th_ind=1:length(theta)
-            for phi_ind=1:length(phi)  
+            for phi_ind=1:length(phi)
+                % Need to express Riccati-Bessel functions as numerically
+                % stable ratios.
+                [D1_mxrho, D2_mxrho, ~, ~, psi_chi_mxrho] = riccBessRatios(ind_max, mxrho(rho_ind));
+                [~, ~, ~, ~, psi_chi_xL] = riccBessRatios(ind_max, max(size_prms)*max(ns_part));
+                psi1_psi2 = psiRatio(ind_max, mxrho(rho_ind), max(size_prms)*max(ns_part));
+                chi_psi_mxrho = 1./psi_chi_mxrho;
+                
+                chi_ratio = chi_psi_mxrho .* psi1_psi2 .* psi_chi_xL;
+                chi_p_ratio = D2_mxrho .* chi_ratio;
+                if layer == 1
+                   chi_ratio(1:ind_max) = 0;
+                   chi_p_ratio(1:ind_max) = 0;
+                end
+                
+                psi_ratio = psi1_psi2 .* psi_chi_xL;
+                psi_p_ratio = D1_mxrho .* psi_ratio;
+                
                 for n=1:ind_max
                     % m_arr corresponds to an array of actual m values we are interested in summing over.
                     m_arr = [-n:1:n];
@@ -64,25 +77,25 @@ function [E_r, E_theta, E_phi] = StratifiedSphere_InternalField(rho, theta, phi,
                     % coefficients -- that is, you can always factor out
                     % the BSCs, and thus remove the m-dependence
                     Er_tm = (relRefs(layer+1)*Cn_pw(n)*gnm_TM(n,m_ind)) .* (sin(theta(th_ind))*PI_Mat(n,m_ind,th_ind)) .* exp_imphi ...
-                        .* ((cnj(n,layer)*n*(n+1)*Psi_n(rho_ind,n) + enj(n,layer)*n*(n+1)*Chi_n(rho_ind,n))/(mxrho(rho_ind)^2));
+                        .* ((cnj(n,layer)*n*(n+1)*psi_ratio(n) + enj(n,layer)*n*(n+1)*chi_ratio(n))/(mxrho(rho_ind)^2));
                     
                     E_r(rho_ind,th_ind,phi_ind) = E_r(rho_ind,th_ind,phi_ind) + sum(Er_tm);
   
                         
                     Eth_tm = (relRefs(layer+1)*Cn_pw(n)*gnm_TM(n,m_ind)) .* TAU_Mat(n,m_ind,th_ind) .* exp_imphi ...
-                        .* ((cnj(n,layer)*Psi_n_p(rho_ind,n) + enj(n,layer)*Chi_n_p(rho_ind,n))/mxrho(rho_ind));
+                        .* ((cnj(n,layer)*psi_p_ratio(n) + enj(n,layer)*chi_p_ratio(n))/mxrho(rho_ind));
                         
                     Eth_te = (-1i*relRefs(layer+1)*Cn_pw(n)*gnm_TE(n,m_ind)) .* PI_Mat(n,m_ind,th_ind) .* (1i*m_arr.*exp_imphi) ...
-                        .* ((dnj(n,layer)*Psi_n(rho_ind,n) + fnj(n,layer)*Chi_n(rho_ind,n))/mxrho(rho_ind));
+                        .* ((dnj(n,layer)*psi_ratio(n) + fnj(n,layer)*chi_ratio(n))/mxrho(rho_ind));
                         
                     E_theta(rho_ind,th_ind,phi_ind) = E_theta(rho_ind,th_ind,phi_ind) + sum(Eth_tm) + sum(Eth_te);
                     
                     
                     Ephi_tm = (relRefs(layer+1)*Cn_pw(n)*gnm_TM(n,m_ind)) .* PI_Mat(n,m_ind,th_ind) .* (1i*m_arr.*exp_imphi) ...
-                        .* ((cnj(n,layer)*Psi_n_p(rho_ind,n) +  enj(n,layer)*Chi_n_p(rho_ind,n))/mxrho(rho_ind));
+                        .* ((cnj(n,layer)*psi_p_ratio(n) +  enj(n,layer)*chi_p_ratio(n))/mxrho(rho_ind));
                     
                     Ephi_te = (1i*relRefs(layer+1)*Cn_pw(n)*gnm_TE(n,m_ind)) .* TAU_Mat(n,m_ind,th_ind) .* (exp_imphi) ...
-                        .* ((dnj(n,layer)*Psi_n(rho_ind,n) +  fnj(n,layer)*Chi_n(rho_ind,n))/mxrho(rho_ind));       
+                        .* ((dnj(n,layer)*psi_ratio(n) +  fnj(n,layer)*chi_ratio(n))/mxrho(rho_ind));   
                     
                     E_phi(rho_ind,th_ind,phi_ind) = E_phi(rho_ind,th_ind,phi_ind) + sum(Ephi_tm) + sum(Ephi_te);
                 end
@@ -92,8 +105,8 @@ function [E_r, E_theta, E_phi] = StratifiedSphere_InternalField(rho, theta, phi,
     % Debugging output
     % Electric field intensity
     InternalIntensity=abs(E_r).^2 + abs(E_theta).^2 + abs(E_phi).^2;
-    max(max(max(InternalIntensity)))
-return
+    max(max(max(InternalIntensity)));
+end
 %End function StratifiedSphere_InternalField
 
 function layer = getLayer(rho, size_prms)
@@ -106,7 +119,7 @@ function layer = getLayer(rho, size_prms)
 			break;
 		end
     end
-return
+end
 
 function [Psi_n, Psi_n_p, Chi_n, Chi_n_p] = BesselCalc(ind_max, X)
     orders=[0:ind_max]; 
@@ -127,7 +140,7 @@ function [Psi_n, Psi_n_p, Chi_n, Chi_n_p] = BesselCalc(ind_max, X)
     Chi_n_p = Chi_n( indices-1 ) - (1:ind_max)./X.*Chi_n(indices);   
     % Get rid of the leading 0-order term in our returned Riccatti-Bessel functions.
     Chi_n(1)=[];
-return
+end
 
 % ===============================================
 % Function name: PI_TAU_Calc
@@ -218,7 +231,7 @@ function [PI_nm,TAU_nm]=PI_TAU_Calc(theta,ind_max)
     % And drop an extra dimension added to the end of PI_NM
     PI_nm(ind_max+1,:) = [];
     PI_nm(:,2*ind_max+1) = [];    
-return
+end
 
 % ===============================================
 % Function name: BeamShapeCoeff
@@ -253,4 +266,96 @@ function [gnm_TE,gnm_TM]=BeamShapeCoeff(ind_max)
         gnm_TE(n,n+1-1)=0.5*1i;
     end
     %------------ End of beam shape coefficient calculations ------------%
-return
+end
+
+function psi1_on_psi2 = psiRatio(ind_max, args1, args2)
+
+%     arg_len = length(args1);
+%     psi1(1:ind_max,1:arg_len) = 0;
+%     psi2(1:ind_max,1:arg_len) = 0;
+%     for nn=1:ind_max
+%        psi1(nn,:) = sqrt((2/pi)*args1).*besselj(nn+0.5,args1); 
+%        psi2(nn,:) = sqrt((2/pi)*args2).*besselj(nn+0.5,args2);
+%     end
+% 
+%     psi1_on_psi2 = psi1./psi2;
+    
+    % The problem with this approach is that computation of the Bessel
+    % function of the first kind becomes unstable when the order >> than
+    % the absolute value of the argument. Thus, I believe without proof
+    % that Toon & Ackerman's original error analysis is insufficient, or
+    % that I have made some error in implementing their algorithm.
+    % See Kaiser and Schweiger, 1993, for recurrence formula
+    % args1 and args2 should be the same length
+    jjlength = length(args1);
+    psi1_on_psi2(1:ind_max, 1:jjlength) = 0;
+    psi_start(1:jjlength) = 1;
+    
+    % Find some auxiliary values for initialization of recurrence
+    A = exp(imag(2*args1 + args2)) + exp(imag(args2));
+    B = exp(imag(2*args1 + args2)) - exp(imag(args2));
+    C = exp(imag(2*args2 + args1)) + exp(imag(args1));
+    D = exp(imag(2*args2 + args1)) - exp(imag(args1));
+    
+    psi_start(:) = ( A.*sin(real(args1)) + 1i*B.*cos(real(args1)) ) ...
+        ./ ( C.*sin(real(args2)) + 1i*D.*cos(real(args2)) );
+    
+    % Compute logarithmic derivatives
+    [D1x1, ~, ~, ~, ~] = riccBessRatios(ind_max, args1);
+    [D1x2, ~, ~, ~, ~] = riccBessRatios(ind_max, args2);
+    
+    psi1_on_psi2(1,:) = psi_start.*((D1x2(1,:)+1./args2)./(D1x1(1,:)+1./args1));
+    for nn=2:ind_max
+       psi1_on_psi2(nn,:) = psi1_on_psi2(nn-1,:).*((D1x2(nn,:)+nn./args2)./(D1x1(nn,:)+nn./args1));
+    end
+end
+
+function [D1, D2, D3, psi_on_xi, psi_on_chi] = riccBessRatios(ind_max, args)   
+    
+    % Initialize to avoid many dynamic allocations.
+    jlength = length(args);
+    D1(1:ind_max,1:jlength) = 0;
+    D2(1:ind_max,1:jlength) = 0;
+    D3(1:ind_max,1:jlength) = 0;
+    psi_on_xi(1:ind_max,1:jlength) = 0;
+    psi_on_chi(1:ind_max,1:jlength) = 0; 
+    
+    % For each argument, compute D1 by downward recurrence.
+    % Start the downward recurrence a few terms above the desired ind_max.
+    % Justification to start 15 terms above desired index comes from Bohren
+    % and Huffman.
+    D1start(1:jlength)=0;
+    nDelta = 60;
+    for n=(ind_max+nDelta):-1:ind_max
+        D1start = n./args - (D1start + n./args).^(-1); 
+    end
+    D1(ind_max,:)=D1start;
+    for n=ind_max:-1:2
+        D1(n-1,:) = n./args - (D1(n,:) + n./args).^(-1);
+    end
+    
+    % Then let's calculate D3 by upwards recurrence.
+    D3(1,:) = (1./args - 1i).^(-1) - 1./args;
+    for n=2:ind_max
+        D3(n,:) = (n./args - D3(n-1,:)).^(-1) - n./args;
+    end
+    
+    % Then we get psi_on_xi by upwards recurrence
+    psi_on_xi(1,:) = (sin(args)./(sin(args)-1i*cos(args))).* ...
+                        (D3(1,:) + 1./args) ./ (D1(1,:) + 1./args);
+    for n=2:ind_max
+        psi_on_xi(n,:) = psi_on_xi(n-1,:) .* (D3(n,:) + n./args) ./ (D1(n,:) + n./args);   
+    end
+    
+    % D2 also calculated by upward recurrence...
+    D2(1,:) = (1./args + tan(args)).^(-1) - 1./args;
+    for n=2:ind_max
+        D2(n,:) = (n./args - D2(n-1,:)).^(-1) - n./args;
+    end
+    
+    % Then we can get psi_on_chi by upwards recurrence
+    psi_on_chi(1,:) = tan(args) .* (D2(1,:) + 1./args) ./ (D1(1,:) + 1./args);
+    for n=2:ind_max
+        psi_on_chi(n,:) = psi_on_chi(n-1,:) .* (D2(n,:) + n./args) ./ (D1(n,:) + n./args);
+    end
+end

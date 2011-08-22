@@ -58,12 +58,15 @@ function [an, bn, cnj, dnj, enj, fnj] = StratifiedSphere_PWC(size_prms, ns_part,
     % different arguments are given by Kaiser and Schweiger, 1993
     mLxL = mxjs(L);
     psiRat_mLxL_xL = psiRatio(ind_max, mLxL, xjs(L));
-    psi_xi_mLxL = psi_xi_mx(L);
-%     [~, ~, ~, psi_xi_mLxL, ~] = riccBessRatios(ind_max, mLxL);
-%     [~, ~, ~, ~, psi_chi_x] = riccBessRatios(ind_max, xjs);
+    psi_xi_mLxL = psi_xi_mx(:,L);
     
     cnj(:,L) = ((psi_xi_mLxL-an)./(psi_chi_x(:,L)-R(:,L))).*((psi_xi_mLxL).^(-1)).*psi_chi_x(:,L).*psiRat_mLxL_xL;
     dnj(:,L) = ((psi_xi_mLxL-bn)./(psi_chi_x(:,L)-Q(:,L))).*((psi_xi_mLxL).^(-1)).*psi_chi_x(:,L).*psiRat_mLxL_xL;
+    
+    % These values are multiplied by a factor of chi, so that the internal
+    % field components can be expressed as Bessel function ratios
+    cnj(:,L) = cnj(:,L) .* ( sqrt(xjs(L)*pi/2)*bessely((1:ind_max)+0.5,xjs(L)) )';
+    dnj(:,L) = dnj(:,L) .* ( sqrt(xjs(L)*pi/2)*bessely((1:ind_max)+0.5,xjs(L)) )';
     
     [~, ~, ~, ~, psi_chi_mx1] = riccBessRatios(ind_max, mj_xj1s);
     [~, ~, ~, ~, psi_chi_x1] = riccBessRatios(ind_max, xjs(1:L-1));
@@ -75,19 +78,8 @@ function [an, bn, cnj, dnj, enj, fnj] = StratifiedSphere_PWC(size_prms, ns_part,
             .*((psi_chi_mx1(:,jj-1)).^(-1)).*psi_chi_x1(:,jj-1).*psiRat_mx1_x1(:,jj-1);
     end
     
-    enj = -R.*cnj;
-    fnj = -Q.*dnj;
-    
-%     % This calculation is seemingly numerically unstable.
-%     cnj(:,L) = (psi_mLxL - an.*xi_mLxL)./(psi_x(:,L) - R(:,L).*chi_x(:,L));
-%     dnj(:,L) = ((1/relRefs(L))^2)*(psi_mLxL - bn.*xi_mLxL)./(psi_x(:,L) - Q(:,L).*chi_x(:,L));
-%     for j=L:-1:2
-%         cnj(:,j-1) = cnj(:,j) .* ( psi_mx1(:,j-1) - R(:,j).*chi_mx1(:,j-1) ) ...
-%                         ./ ( psi_x(:,j-1) - R(:,j-1).*chi_x(:,j-1) );
-%         dnj(:,j-1) = ((relRefs(j)/relRefs(j-1))^2) * dnj(:,j) .* ( psi_mx1(:,j-1) - Q(:,j).*chi_mx1(:,j-1) ) ...
-%                         ./ ( psi_x(:,j-1) - Q(:,j-1).*chi_x(:,j-1) );                    
-%     end
-%     
+    enj = (-R.*cnj);
+    fnj = (-Q.*dnj);
 end
 
 function psi1_on_psi2 = psiRatio(ind_max, args1, args2)
@@ -104,9 +96,7 @@ function psi1_on_psi2 = psiRatio(ind_max, args1, args2)
     
     % The problem with this approach is that computation of the Bessel
     % function of the first kind becomes unstable when the order >> than
-    % the absolute value of the argument. Thus, I believe without proof
-    % that Toon & Ackerman's original error analysis is insufficient, or
-    % that I have made some error in implementing their algorithm.
+    % the absolute value of the argument.
     % See Kaiser and Schweiger, 1993, for recurrence formula
     % args1 and args2 should be the same length
     jjlength = length(args1);
