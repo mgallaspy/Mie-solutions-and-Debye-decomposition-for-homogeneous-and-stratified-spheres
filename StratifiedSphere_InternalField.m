@@ -16,7 +16,7 @@ function [E_r, E_theta, E_phi] = StratifiedSphere_InternalField(rho, theta, phi,
             [PI_Mat(:,:,th_ind),TAU_Mat(:,:,th_ind)]=PI_TAU_Calc(theta(th_ind),ind_max);
     end
 
-	% Calculate Bessel functions for each layer of the sphere
+	% Calculate radially-dependent values for each layer of the sphere
 	rho_len = length(rho);
     mxrho(1:rho_len) = 0;
 	for rho_ind=1:rho_len
@@ -25,7 +25,6 @@ function [E_r, E_theta, E_phi] = StratifiedSphere_InternalField(rho, theta, phi,
 		size_prm = size_prms(layer);
         n_part = ns_part(layer);
         mxrho(rho_ind) = size_prm*n_part*rho(rho_ind);
-%         [Psi_n(rho_ind,:), Psi_n_p(rho_ind,:), Chi_n(rho_ind,:), Chi_n_p(rho_ind,:)] = BesselCalc(ind_max, mxrho(rho_ind));
 	end
 
     % Calculate the plane wave coefficients needed in the Bromwich formulation
@@ -102,10 +101,6 @@ function [E_r, E_theta, E_phi] = StratifiedSphere_InternalField(rho, theta, phi,
             end
     	end
     end
-    % Debugging output
-    % Electric field intensity
-    InternalIntensity=abs(E_r).^2 + abs(E_theta).^2 + abs(E_phi).^2;
-    max(max(max(InternalIntensity)));
 end
 %End function StratifiedSphere_InternalField
 
@@ -119,27 +114,6 @@ function layer = getLayer(rho, size_prms)
 			break;
 		end
     end
-end
-
-function [Psi_n, Psi_n_p, Chi_n, Chi_n_p] = BesselCalc(ind_max, X)
-    orders=[0:ind_max]; 
-    indices=[2:ind_max+1];
-    
-    % Calculate Riccati-Bessels from orders 0 to ind_max.
-    Psi_n=sqrt(X*pi/2)*besselj(orders+0.5,X);
-    % Then calculate Riccati-Bessel derivatives from orders 1 to ind_max.
-    % Note that R_Besseln_X(p) is the (p-1)-order function.
-    Psi_n_p = Psi_n( indices-1 ) - (1:ind_max)./X.*Psi_n(indices);
-    % Get rid of the leading 0-order term in our returned Riccatti-Bessel functions.
-    Psi_n(1)=[];
-    
-    % Calculate Riccati-Bessels from orders 0 to ind_max.
-    Chi_n=sqrt(X*pi/2)*bessely(orders+0.5,X);
-    % Then calculate Riccati-Bessel derivatives from orders 1 to ind_max.
-    % Note that R_Besseln_X(p) is the (p-1)-order function.
-    Chi_n_p = Chi_n( indices-1 ) - (1:ind_max)./X.*Chi_n(indices);   
-    % Get rid of the leading 0-order term in our returned Riccatti-Bessel functions.
-    Chi_n(1)=[];
 end
 
 % ===============================================
@@ -269,22 +243,6 @@ function [gnm_TE,gnm_TM]=BeamShapeCoeff(ind_max)
 end
 
 function psi1_on_psi2 = psiRatio(ind_max, args1, args2)
-
-%     arg_len = length(args1);
-%     psi1(1:ind_max,1:arg_len) = 0;
-%     psi2(1:ind_max,1:arg_len) = 0;
-%     for nn=1:ind_max
-%        psi1(nn,:) = sqrt((2/pi)*args1).*besselj(nn+0.5,args1); 
-%        psi2(nn,:) = sqrt((2/pi)*args2).*besselj(nn+0.5,args2);
-%     end
-% 
-%     psi1_on_psi2 = psi1./psi2;
-    
-    % The problem with this approach is that computation of the Bessel
-    % function of the first kind becomes unstable when the order >> than
-    % the absolute value of the argument. Thus, I believe without proof
-    % that Toon & Ackerman's original error analysis is insufficient, or
-    % that I have made some error in implementing their algorithm.
     % See Kaiser and Schweiger, 1993, for recurrence formula
     % args1 and args2 should be the same length
     jjlength = length(args1);

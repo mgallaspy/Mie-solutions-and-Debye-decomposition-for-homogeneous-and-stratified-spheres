@@ -83,20 +83,6 @@ function [an, bn, cnj, dnj, enj, fnj] = StratifiedSphere_PWC(size_prms, ns_part,
 end
 
 function psi1_on_psi2 = psiRatio(ind_max, args1, args2)
-
-%     arg_len = length(args1);
-%     psi1(1:ind_max,1:arg_len) = 0;
-%     psi2(1:ind_max,1:arg_len) = 0;
-%     for nn=1:ind_max
-%        psi1(nn,:) = sqrt((2/pi)*args1).*besselj(nn+0.5,args1); 
-%        psi2(nn,:) = sqrt((2/pi)*args2).*besselj(nn+0.5,args2);
-%     end
-% 
-%     psi1_on_psi2 = psi1./psi2;
-    
-    % The problem with this approach is that computation of the Bessel
-    % function of the first kind becomes unstable when the order >> than
-    % the absolute value of the argument.
     % See Kaiser and Schweiger, 1993, for recurrence formula
     % args1 and args2 should be the same length
     jjlength = length(args1);

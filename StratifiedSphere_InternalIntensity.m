@@ -26,10 +26,8 @@ theta = linspace(eps,2*pi,theta_num);
 rho = linspace(eps,1,rho_num);
 
 % Calculate partiral wave coefficients, and then intensity at each point.
-%[an,bn,cn,dn]=HomogeneousSphere_PWC(m_relative,size_prm,ind_max,orderP);
 [~, ~, cnj, dnj, enj, fnj] = StratifiedSphere_PWC(size_prms, ns_part, n_med);
 
-%[E_r,E_th,E_phi] = HomogeneousSphere_InternalField(rho,theta,phi,ind_max,n_medium,n_particle,size_prm,cn,dn,gnm_TE,gnm_TM);
 [E_r, E_th, E_phi] = StratifiedSphere_InternalField(rho, theta, phi, n_med, ns_part, size_prms, cnj, dnj, enj, fnj);
 
 Intensity=abs(E_r).^2 + abs(E_th).^2 + abs(E_phi).^2;
@@ -68,7 +66,4 @@ axis auto;
 colorbar;                            % add contour legend
 colormap jet;                       % set colormap (red=high;blue=low)
 hold off;                            % remove hold on figure
-
-figure; 
-h = contour(z(:,:,phi_plane_ind),x(:,:,phi_plane_ind),Intensity(:,:,phi_plane_ind),60);
 %---------- End HomogeneousSphere_InternalIntensity function --------

@@ -78,11 +78,6 @@ function [E_r, E_theta, E_phi] = StratifiedSphere_ScatteredField(rho, theta, phi
             end
     	end
     end
-    
-    % Debugging output
-    % Electric field intensity
-    Intensity=abs(E_r).^2 + abs(E_theta).^2 + abs(E_phi).^2;
-    max(max(max(Intensity)))
 return
 %End function StratifiedSphere_ScatteredField
 
