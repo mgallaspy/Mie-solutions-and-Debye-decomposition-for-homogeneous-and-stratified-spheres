@@ -60,7 +60,6 @@ function [E_r, E_theta, E_phi] = StratifiedSphere_InternalField(rho, theta, phi,
                 
                 psi_ratio = psi1_psi2 .* psi_chi_xL;
                 psi_p_ratio = D1_mxrho .* psi_ratio;
-                
                 for n=1:ind_max
                     % m_arr corresponds to an array of actual m values we are interested in summing over.
                     m_arr = [-n:1:n];
